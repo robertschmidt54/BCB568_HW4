@@ -43,16 +43,11 @@ def generate_hstring(h_list, set_char, prefix, set_len, str_len):
     return h_list
 
 
-code={"A":0, "C":1, "G":2, "T":3 }
 
-nucs = ['A', 'C', 'G', 'T']
-# Order of markov chain
-h = 7
-Tau = intialize_Tau(nucs, h)
 
 ##### To Do: #####
-# Eta0 and Eta1: Rob
-# Pi: Rob
+# Eta0 and Eta1: Rob DONE
+# Pi: Rob DONE
 # Foward(alpha) : Kelby & Parnal
 # Backward(beta): Shatabdi & ROb
 # Estep:
@@ -78,14 +73,21 @@ Tau = intialize_Tau(nucs, h)
 
 
 
+code={"A":0, "C":1, "G":2, "T":3 }
+
+nucs = ['A', 'C', 'G', 'T']
+# Order of markov chain
+h = 7
 
 # Import Fastq
 reads = []
 qualities = []
 # Initial state matrix
-gamma = np.random.dirichlet(np.ones(4))
-
-
+tau = intialize_Tau(nucs, h)
+gamma = np.random.dirichlet(np.ones(pow(4,h)))
+eta0 = np.random.dirichlet(np.ones(40))
+eta1 = np.random.dirichlet(np.ones(40))
+pi = np.random.dirichlet(np.ones((4,4)),4)
 for record in SeqIO.parse("test.fastq", "fastq"):
 
     reads.append(str(record.seq))
