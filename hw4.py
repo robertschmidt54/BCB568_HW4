@@ -5,7 +5,7 @@ import pandas as pd
 
 # Functions
 
-def intialize_P(nucs, h):
+def intialize_Tau(nucs, h):
     """
 
     :param nucs:
@@ -18,9 +18,9 @@ def intialize_P(nucs, h):
     matrix = np.random.rand(pow(4,h), 4)
     test = matrix / matrix.sum(axis=1)[:, None]
 
-    P = pd.DataFrame(test,index= list_of_hstrings, columns= ('A', 'C', 'G', 'T'))
+    Tau = pd.DataFrame(test, index= list_of_hstrings, columns= ('A', 'C', 'G', 'T'))
 
-    return P
+    return Tau
 
 
 def generate_hstring(h_list, set_char, prefix, set_len, str_len):
@@ -48,11 +48,36 @@ code={"A":0, "C":1, "G":2, "T":3 }
 nucs = ['A', 'C', 'G', 'T']
 # Order of markov chain
 h = 7
-P = intialize_P(nucs, h)
+Tau = intialize_Tau(nucs, h)
+
+##### To Do: #####
+# Eta0 and Eta1: Rob
+# Pi: Rob
+# Foward(alpha) : Kelby & Parnal
+# Backward(beta): Shatabdi & ROb
+# Estep:
+    # eij:
+    # eijz:
+# Mstep:
+    # Update Eta:
+    # Update Pi:
+    # Update Gamma
+    # Update Tau
+# Convergence function:
+# Main Program:
+    # Intialize Parameters
+    # Run the Estep functions
+    # Run Update functions
+
+#to correct for underflow:
+# calculate e numerators in log space
+# Take the max of that numerator
+# Convert back to normal with exp()
+# Subtract the max value
+# https://stackoverflow.com/questions/42599498/numercially-stable-softmax
 
 
-# Eta
-# Pi
+
 
 # Import Fastq
 reads = []
