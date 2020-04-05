@@ -51,42 +51,55 @@ def alpha_func(initial_n, n, eta0, eta1, pi, gamma, reads, qualities, tau, h):
 
     list_of_hstrings = []
     sample_space = generate_hstring(list_of_hstrings, nuc, "", len(nuc), h)
+    # j is posistion.
     for j in range(0, len(reads[0])):
-
+        # i is read
         for i in range(0, len(reads)):
 
             q = qualities[i]
             r = reads[i]
             alpha = 1
-            if r[0:h] == initial_n:
-                # Is this Pi(R,N) or Pir(N,R)???
-
-                for l in range(0, h):
-                    alpha *= eta0[q[l]] * pi[code[r[l]]][code[initial_n[l]]] * gamma[code[initial_n[l]]]
+            if j == 0:
+                for l in range(0,h):
+                    if r[l] == initial_n[l]:
+                        # Is this Pi(R,N) or Pir(N,R)???
+                        alpha *= eta0[q[l]] * pi[code[r[l]]][code[initial_n[l]]] * gamma[code[initial_n[l]]]
+                    else:
+                        alpha *= eta1[q[l]] * pi[code[r[l]]][code[initial_n[l]]] * gamma[code[initial_n[l]]]
             else:
-                for l in range(0, h):
-                    alpha *= eta1[q[l]] * pi[code[r[l]]][code[initial_n[l]]] * gamma[code[initial_n[l]]]
+                for j in range(1,len(reads[i])):
+                    sum_thing = 0
 
-            for j in range(1,len(reads[i])):
-                sum_thing = 0
+                    if r[j] == n:
 
-                if r[j] == n:
+                        for k in nuc:
+                            sum_thing += tau[k][code[n]] * alpha
 
-                    for k in nuc:
-                        sum_thing += tau[k][code[n]] * alpha
+                        alpha = eta0[q[0]] * pi[code[r[0]]][code[n]] * sum_thing
 
-                    alpha = eta0[q[0]] * pi[code[r[0]]][code[n]] * sum_thing
+                    else:
 
-                else:
+                        for k in nuc:
+                            sum_thing += tau[k][code[n]] * alpha
 
-                    for k in nuc:
-                        sum_thing += tau[k][code[n]] * alpha
-
-                        alpha = eta1[q[0]] * pi[code[r[0]]][code[n]] * sum_thing
-            alpha_vec[i] = alpha
+                            alpha = eta1[q[0]] * pi[code[r[0]]][code[n]] * sum_thing
+                alpha_vec[i] = alpha
 
     return alpha_vec
 
+
+def beta_func(eta0, eta1, pi, gamma, reads, qualities, tau, h):
+    beta_out = np.ones((len(reads[0]), pow(4, h)))
+    beta_l = 1
+
+    for j in range(len(reads[0])-1, -1, -1):
+        for i in len(reads):
+            read = reads[i]
+            quality = qualities[i]
+            beta_ijn = 0
+            for n in nucs:
+                if read[j] == n:
+                    beta_ijn += eta0[quality]*pi[1]
 
 
 
