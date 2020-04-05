@@ -44,46 +44,46 @@ def generate_hstring(h_list, set_char, prefix, set_len, str_len):
 
 def alpha_func(initial_n, n, eta0, eta1, pi, gamma, reads, qualities, tau, h):
 
-    alpha_vec = np.zeros(len(reads))
+    alpha_vec = np.ones((len(reads), pow(4,h)))
+    temp_alpha = np.ndarray(len(reads))
+
     nuc = ['A', 'C', 'G', 'T']
 
     list_of_hstrings = []
     sample_space = generate_hstring(list_of_hstrings, nuc, "", len(nuc), h)
+    for j in range(0, len(reads[0])):
 
+        for i in range(0, len(reads)):
 
+            q = qualities[i]
+            r = reads[i]
+            alpha = 1
+            if r[0:h] == initial_n:
+                # Is this Pi(R,N) or Pir(N,R)???
 
-
-    for i in range(0, len(reads)):
-
-        q = qualities[i]
-        r = reads[i]
-        alpha = 1
-        if r[0:h] == initial_n:
-            # Is this Pi(R,N) or Pir(N,R)???
-
-            for l in range(0, h):
-                alpha *= eta0[q[l]] * pi[code[initial_n[l]]][code[r[l]]] * gamma[code[initial_n[l]]]
-        else:
-            for l in range(0, h):
-                alpha *= eta1[q[l]] * pi[code[initial_n[l]]][code[r[l]]] * gamma[code[initial_n[l]]]
-
-        for j in range(1,len(reads[i])):
-            sum_thing = 0
-
-            if r[j] == n:
-
-                for k in nuc:
-                    sum_thing += tau[k][code[n]] * alpha
-
-                alpha = eta0[q[0]] * pi[code[n]][code[r[0]]] * sum_thing
-
+                for l in range(0, h):
+                    alpha *= eta0[q[l]] * pi[code[r[l]]][code[initial_n[l]]] * gamma[code[initial_n[l]]]
             else:
+                for l in range(0, h):
+                    alpha *= eta1[q[l]] * pi[code[r[l]]][code[initial_n[l]]] * gamma[code[initial_n[l]]]
 
-                for k in nuc:
-                    sum_thing += tau[k][code[n]] * alpha
+            for j in range(1,len(reads[i])):
+                sum_thing = 0
 
-                    alpha = eta1[q[0]] * pi[code[n]][code[r[0]]] * sum_thing
-        alpha_vec[i] = alpha
+                if r[j] == n:
+
+                    for k in nuc:
+                        sum_thing += tau[k][code[n]] * alpha
+
+                    alpha = eta0[q[0]] * pi[code[r[0]]][code[n]] * sum_thing
+
+                else:
+
+                    for k in nuc:
+                        sum_thing += tau[k][code[n]] * alpha
+
+                        alpha = eta1[q[0]] * pi[code[r[0]]][code[n]] * sum_thing
+            alpha_vec[i] = alpha
 
     return alpha_vec
 
@@ -151,8 +151,9 @@ for record in SeqIO.parse("test.fastq", "fastq"):
 reads = np.asarray(reads)
 qualities = np.asarray(qualities)
 
-print(len(reads))
-print(alpha_func('TTA','G', eta0, eta1, pi, gamma, reads, qualities, tau, h))
+
+alpha_G = alpha_func('TTA','G', eta0, eta1, pi, gamma, reads, qualities, tau, h)
+# print(alpha_G)
 
 
 
