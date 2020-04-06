@@ -2,6 +2,7 @@
 import numpy as np
 from Bio import SeqIO
 import pandas as pd
+import math
 
 # Functions
 
@@ -42,48 +43,72 @@ def generate_hstring(h_list, set_char, prefix, set_len, str_len):
 
     return h_list
 
-def alpha_func(initial_n, n, eta0, eta1, pi, gamma, reads, qualities, tau, h):
 
-    alpha_vec = np.ones((len(reads), pow(4,h)))
-    temp_alpha = np.ndarray(len(reads))
+def alpha_func(eta0, eta1, pi, gamma, reads, qualities, tau, h):
 
+    alpha_vec = np.ones((len(reads[0]), pow(4,h)))
     nuc = ['A', 'C', 'G', 'T']
-
     list_of_hstrings = []
     sample_space = generate_hstring(list_of_hstrings, nuc, "", len(nuc), h)
-    # j is posistion.
-    for j in range(0, len(reads[0])):
-        # i is read
-        for i in range(0, len(reads)):
 
-            q = qualities[i]
-            r = reads[i]
+    position = 0
+    j = 0
+    while j <= len(reads[0]):
+        # print(j)
+        if j > 0:
+            # Correct for Underflow
+
+            max_value = np.max(alpha_vec[position-1])
+            # alpha_vec[position - 1] = alpha_vec[position - 1] - max_value
+            alpha_vec[position-1] = np.exp(alpha_vec[position-1])
+            alpha_vec[position-1] = alpha_vec[position-1] - max_value
+            alpha_vec[position-1] = alpha_vec[position-1]/np.sum(alpha_vec[position-1])
+
+            if j == len(reads[0]):
+                break
+        # print(j)
+        # print(alpha_vec)
+
+        for s in sample_space:
             alpha = 1
-            if j == 0:
-                for l in range(0,h):
-                    if r[l] == initial_n[l]:
-                        # Is this Pi(R,N) or Pir(N,R)???
-                        alpha *= eta0[q[l]] * pi[code[r[l]]][code[initial_n[l]]] * gamma[code[initial_n[l]]]
-                    else:
-                        alpha *= eta1[q[l]] * pi[code[r[l]]][code[initial_n[l]]] * gamma[code[initial_n[l]]]
-            else:
-                for j in range(1,len(reads[i])):
+
+            for i in range(0, len(reads)):
+                q = qualities[i]
+                r = reads[i]
+                sum_thing = 0
+
+                if j == 0:
+                    for l in range(0,h):
+                        if r[l] == s[l]:
+                            alpha += math.log(eta0[q[l]-1] * pi[code[r[l]]][code[s[l]]] * gamma[code[s[l]]])
+                        else:
+                            alpha += math.log(eta1[q[l]-1] * pi[code[r[l]]][code[s[l]]] * gamma[code[s[l]]])
+                else:
                     sum_thing = 0
-
-                    if r[j] == n:
-
-                        for k in nuc:
-                            sum_thing += tau[k][code[n]] * alpha
-
-                        alpha = eta0[q[0]] * pi[code[r[0]]][code[n]] * sum_thing
+                    if r[j] == s[h-1]:
+                        n = s[h-1]
+                        sum_thing = tau.sum(axis=0)[n]
+                        # Something is wrong here.
+                        sum_thing *= alpha_vec[position-1][sample_space.index(s)]
+                        alpha += math.log(eta0[q[j]-1] * pi[code[r[j]]][code[n]] * sum_thing)
 
                     else:
+                        n = s[h - 1]
+                        sum_thing = tau.sum(axis=0)[n]
+                        sum_thing *= alpha_vec[position - 1][sample_space.index(s)]
+                        alpha += math.log(eta1[q[j]-1] * pi[code[r[j]]][code[n]] * sum_thing)
+                        # print(math.log(eta1[q[j]-1] * pi[code[r[j]]][code[n]] * sum_thing))
 
-                        for k in nuc:
-                            sum_thing += tau[k][code[n]] * alpha
+                if i == len(reads)-1:
+                    alpha_vec[position][sample_space.index(s)] = alpha
 
-                            alpha = eta1[q[0]] * pi[code[r[0]]][code[n]] * sum_thing
-                alpha_vec[i] = alpha
+
+        if j == 0:
+            j += h
+        else:
+            j += 1
+
+        position += 1
 
     return alpha_vec
 
@@ -109,7 +134,7 @@ def beta_func(eta0, eta1, pi, gamma, reads, qualities, tau, h):
 ##### To Do: #####
 # Eta0 and Eta1: Rob DONE
 # Pi: Rob DONE
-# Foward(alpha) : Kelby & Parnal
+# Foward(alpha) : Kelby & Parnal DONE
 # Backward(beta): Shatabdi & ROb
 # Estep:
     # eij:
@@ -138,7 +163,7 @@ code={"A":0, "C":1, "G":2, "T":3 }
 
 nucs = ['A', 'C', 'G', 'T']
 # Order of markov chain
-h = 3
+h = 7
 
 # Import Fastq
 reads = []
@@ -148,14 +173,14 @@ tau = intialize_Tau(nucs, h)
 gamma = np.random.dirichlet(np.ones(pow(4,h)))
 eta0 = np.random.dirichlet(np.ones(40))
 eta1 = np.random.dirichlet(np.ones(40))
-# print(eta1)
+
 
 pi = np.zeros((4,4))
 for i in range(0,4):
     pi[i] = np.random.dirichlet(np.ones(4))
 
 
-for record in SeqIO.parse("test.fastq", "fastq"):
+for record in SeqIO.parse("robs_test.fastq", "fastq"):
 
     reads.append(str(record.seq))
     qualities.append(record.letter_annotations["phred_quality"])
@@ -164,9 +189,20 @@ for record in SeqIO.parse("test.fastq", "fastq"):
 reads = np.asarray(reads)
 qualities = np.asarray(qualities)
 
+h = 2
+# eta0 = np.zeros(40)
+# eta0[36:40] = [0.1, 0.1, 0.3, 0.4]
+#
+# eta1 = np.random.dirichlet(np.ones(40))
+# pi = np.array([[0.5, 0.25, 0.125, 0.125],[0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25]])
+#
+# tau = intialize_Tau(nucs, h)
+# gamma = np.array([0.9,0.03,0.04,0.03])
 
-alpha_G = alpha_func('TTA','G', eta0, eta1, pi, gamma, reads, qualities, tau, h)
-# print(alpha_G)
+alpha = alpha_func(eta0, eta1, pi, gamma, reads, qualities, tau, h)
+print(alpha)
+
+
 
 
 
