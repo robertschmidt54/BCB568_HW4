@@ -46,7 +46,10 @@ def generate_hstring(h_list, set_char, prefix, set_len, str_len):
 
 def alpha_func(eta0, eta1, pi, gamma, read, quality, tau, h):
 
-    alpha_vec = np.zeros((len(reads[0]), pow(4,h)))
+    # Use line 50 to work in log space:
+    #alpha_vec = np.zeros((len(reads[0]), pow(4,h)))
+    #Use 51 if working in normal space:
+    alpha_vec = np.ones((len(reads[0]), pow(4,h)))
     nuc = ['A', 'C', 'G', 'T']
     list_of_hstrings = []
     sample_space = generate_hstring(list_of_hstrings, nuc, "", len(nuc), h)
@@ -78,26 +81,32 @@ def alpha_func(eta0, eta1, pi, gamma, read, quality, tau, h):
             for l in range(0, h):
 
                 # Loop through first h-mer
-
-                alpha_vec[0][sample_space.index(s)] += math.log(eta0[quality[l]-1] * pi[read[l]][s[l]] * gamma[code[s[l]]])
-
+                #If working in log space use line 84:
+                #alpha_vec[0][sample_space.index(s)] += math.log(eta0[quality[l]-1] * pi[read[l]][s[l]] * gamma[code[s[l]]])
+                #in normal space use line 86:
+                alpha_vec[0][sample_space.index(s)] *= eta0[quality[l]-1]*pi[s[l]][read[l]]*gamma[code[s[l]]]
                 # alpha *= eta0[quality[l] - 1] * pi[code[read[l]]][code[s[l]]] * gamma[code[s[l]]]
         else:
             alpha_vec[0][sample_space.index(s)] = 0
 
-        for j in range(h + 1, len(read)):
-            # for s in sample_space:
-            for s in nuc:
-                alpha_vec[j-h][sample_space.index(s)] = 0
+    for j in range(h + 1, len(read)+1):
+        # for s in sample_space:
+        for s in sample_space:
+            alpha_vec[j-h][sample_space.index(s)] = 0
 
-                for t in sample_space:
-                    alpha_vec[j - h][sample_space.index(s)] += math.exp(alpha_vec[j-h-1][sample_space.index(t)]) * tau[t][s]
+            for t in sample_space:
+                #if in log space use line 98:
+                #alpha_vec[j - h][sample_space.index(s)] += math.exp(alpha_vec[j-h-1][sample_space.index(t)]) * tau[t][s]
+                #In normal space use line 100:
+                alpha_vec[j-h][sample_space.index(s)] += alpha_vec[j-h-1][sample_space.index(t)]*tau[s[h-1]][t]
 
-                    # alpha[j - h][s] += alpha[j - h - 1][t] * tau[t][s]
+                # alpha[j - h][s] += alpha[j - h - 1][t] * tau[t][s]
 
-            if read[j] == s[h-1]:
-
-                alpha_vec[j - h][sample_space.index(s)] = math.log(alpha_vec[j - h][sample_space.index(s)]) + math.log(eta0[quality[j]-1] * pi[read[j]][s[h-1]])
+            if read[j-h] == s[h-1]:
+                #In log space use line 107:
+                #alpha_vec[j - h][sample_space.index(s)] = math.log(alpha_vec[j - h][sample_space.index(s)]) + math.log(eta0[quality[j]-1] * pi[read[j]][s[h-1]])
+                #in normal space use line 109
+                alpha_vec[j-h][sample_space.index(s)] *= eta0[quality[j-h]-1]*pi[s[h-1]][read[j-h]]
                 # n = s[h-1]
                 # sum_thing = tau.sum(axis=0)[n]
                 # # Something is wrong here.
@@ -105,8 +114,10 @@ def alpha_func(eta0, eta1, pi, gamma, read, quality, tau, h):
                 # alpha += math.log(eta0[q[j]-1] * pi[code[r[j]]][code[n]] * sum_thing)
 
             else:
-
-                alpha_vec[j - h][sample_space.index(s)] = math.log(alpha_vec[j - h][sample_space.index(s)]) + math.log(eta1[quality[j]-1] * pi[read[j]][s[h-1]])
+                #In log space use line 118:
+                #alpha_vec[j - h][sample_space.index(s)] = math.log(alpha_vec[j - h][sample_space.index(s)]) + math.log(eta1[quality[j]-1] * pi[read[j]][s[h-1]])
+                #In normal space use line 120:
+                alpha_vec[j-h][sample_space.index(s)] *= eta1[quality[j-h]-1] * pi[s[h-1]][read[j-h]]
                 # n = s[h - 1]
                 # sum_thing = tau.sum(axis=0)[n]
                 # sum_thing *= alpha_vec[position - 1][sample_space.index(s)]
@@ -166,7 +177,7 @@ code={"A":0, "C":1, "G":2, "T":3 }
 
 nucs = ['A', 'C', 'G', 'T']
 # Order of markov chain
-h = 7
+h = 1
 
 # Import Fastq
 reads = []
@@ -182,8 +193,8 @@ pi = np.zeros((4,4))
 for i in range(0,4):
     pi[i] = np.random.dirichlet(np.ones(4))
 
-
-for record in SeqIO.parse("robs_test.fastq", "fastq"):
+pi = pd.DataFrame(pi, index = ['A', 'C', 'G', 'T'], columns = ['A', 'C', 'G', 'T'])
+for record in SeqIO.parse("test.fastq", "fastq"):
 
     reads.append(str(record.seq))
     qualities.append(record.letter_annotations["phred_quality"])
@@ -192,16 +203,16 @@ for record in SeqIO.parse("robs_test.fastq", "fastq"):
 reads = np.asarray(reads)
 qualities = np.asarray(qualities)
 
-h = 1
-eta0 = np.zeros(40)
-eta0[36:40] = [0.1, 0.1, 0.3, 0.4]
+#h = 1
+#eta0 = np.zeros(40)
+#eta0[36:40] = [0.1, 0.1, 0.3, 0.4]
 
-eta1 = np.random.dirichlet(np.ones(40))
-pi = np.array([[0.5, 0.25, 0.125, 0.125],[0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25]])
-pi = pd.DataFrame(pi, index= ('A', 'C', 'G', 'T'), columns= ('A', 'C', 'G', 'T'))
+#eta1 = eta0 #np.random.dirichlet(np.ones(40))
+#pi = np.array([[0.5, 0.25, 0.125, 0.125],[0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25]])
+#pi = pd.DataFrame(pi, index= ('A', 'C', 'G', 'T'), columns= ('A', 'C', 'G', 'T'))
 
-tau = intialize_Tau(nucs, h)
-gamma = np.array([0.9,0.03,0.04,0.03])
+#tau = pd.DataFrame(np.array([[0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25]]), index=['A', 'C', 'G', 'T'], columns=['A', 'C', 'G', 'T'])
+#gamma = np.array([0.9,0.03,0.04,0.03])
 alpha = alpha_func(eta0, eta1, pi, gamma, reads[0], qualities[0], tau, h)
 print(alpha)
 
