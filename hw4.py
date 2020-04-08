@@ -46,14 +46,13 @@ def generate_hstring(h_list, set_char, prefix, set_len, str_len):
 
 def alpha_func(eta0, eta1, pi, gamma, read, quality, tau, h):
 
-    alpha_vec = np.ones((len(reads[0]), pow(4,h)))
+    alpha_vec = np.ones((len(read), pow(4,h)))
     nuc = ['A', 'C', 'G', 'T']
     list_of_hstrings = []
     sample_space = generate_hstring(list_of_hstrings, nuc, "", len(nuc), h)
 
     for s in sample_space:
         if read[0:h] == s:
-
             # Assume the first H-mer is error free
             for l in range(0, h):
                 # Loop through first h-mer
@@ -78,28 +77,74 @@ def alpha_func(eta0, eta1, pi, gamma, read, quality, tau, h):
 
 def e_func(eta0, eta1, pi, gamma, read, quality, tau, h):
 
-    beta_out = np.ones((len(read), pow(4, h)))
-    beta_l = 1
+    beta_out = np.ones((2, pow(4, h)))
+
     nuc = ['A', 'C', 'G', 'T']
     list_of_hstrings = []
     sample_space = generate_hstring(list_of_hstrings, nuc, "", len(nuc), h)
+    alpha = alpha_func(eta0, eta1, pi, gamma, read, quality, tau, h)
+    E_ijn = dict.fromkeys(['A', 'C', 'G', 'T'])
+    E_ijn['A']= []
+    E_ijn['C'] =[]
+    E_ijn['G']= []
+    E_ijn['T'] =[]
 
+    E_ijzw = dict.fromkeys(['A', 'C', 'G', 'T'])
+    E_ijn['A'] = []
+    E_ijn['C'] = []
+    E_ijn['G'] = []
+    E_ijn['T'] = []
 
-    # Calculate Beta
-    for j in range(len(reads[0])-2, -1, -1):
+    for j in range(len(read) - 1, -1, -1):
+        # Calculate beta
 
         for s in sample_space:
-            # print(s[h-1])
-            beta_out[j][sample_space.index(s)] = 0
-
+            beta_out[0][sample_space.index(s)] = 0
             for t in sample_space:
 
-                if read[j+1] == s[h-1]:
-                    beta_out[j][sample_space.index(s)] += beta_out[j+1][sample_space.index(t)] * eta0[quality[j+1]-1] * pi[t[h-1]][read[j+1]] * tau[t[h-1]][s]
+                # if read[j+1] == s[h-1]:
+                if read[j] == s[h - 1]:
+                    # beta_out[0][sample_space.index(s)] += beta_out[1][sample_space.index(t)] * eta0[quality[j+1]-1] * pi[t[h-1]][read[j+1]] * tau[t[h-1]][s]
+                    beta_out[0][sample_space.index(s)] += beta_out[1][sample_space.index(t)] * eta0[
+                        quality[j] - 1] * pi[t[h - 1]][read[j]] * tau[t[h - 1]][s]
                 else:
-                    beta_out[j][sample_space.index(s)] += beta_out[j+1][sample_space.index(t)] * eta1[quality[j+1] - 1] * pi[t[h-1]][read[j+1]] * tau[t[h-1]][s]
+                    # beta_out[0][sample_space.index(s)] += beta_out[1][sample_space.index(t)] * eta1[quality[j+1] - 1] * pi[t[h-1]][read[j+1]] * tau[t[h-1]][s]
+                    beta_out[0][sample_space.index(s)] += beta_out[1][sample_space.index(t)] * eta1[
+                        quality[j] - 1] * pi[t[h - 1]][read[j]] * tau[t[h - 1]][s]
 
-    return beta_out
+        # Calculate the numerator of E_ijn for 1 read
+        e = np.multiply(alpha[j], beta_out[1])
+        E_ijn['A'].insert(0,e[0])
+        E_ijn['C'].insert(0,e[1])
+        E_ijn['G'].insert(0,e[2])
+        E_ijn['T'].insert(0,e[3])
+
+        # Calculate the numerator of E_ijzw for 1 read
+
+        e_zw = np.multiply(alpha[j-1], beta_out[1])
+
+        beta_out[1] = beta_out[0]
+
+    eijn_sums = []
+    for k in range(len(read)):
+        position_sum = 0
+        for keys in E_ijn.keys():
+            position_sum += E_ijn[keys][k]
+
+        eijn_sums.append(position_sum)
+
+    # Dividng by the sum over all nucleotides within the same poisition.same read
+    E_ijn['A'] = [b / m for b, m in zip(E_ijn['A'], eijn_sums)]
+    E_ijn['C'] = [b / m for b, m in zip(E_ijn['C'], eijn_sums)]
+    E_ijn['G'] = [b / m for b, m in zip(E_ijn['G'], eijn_sums)]
+    E_ijn['T'] = [b / m for b, m in zip(E_ijn['T'], eijn_sums)]
+
+
+
+    print(E_ijn)
+
+
+    return E_ijn
 
 
 
@@ -115,7 +160,6 @@ def e_func(eta0, eta1, pi, gamma, read, quality, tau, h):
 
 
 ##### To Do: #####
-# Backward(beta): Shatabdi & ROb
 # Estep:
     # eij:
     # eijz:
@@ -169,18 +213,19 @@ for record in SeqIO.parse("robs_test.fastq", "fastq"):
 reads = np.asarray(reads)
 qualities = np.asarray(qualities)
 
-h = 1
-eta0 = np.zeros(40)
-eta0[36:40] = [0.1, 0.1, 0.3, 0.4]
-
-eta1 = eta0 #np.random.dirichlet(np.ones(40))
-pi = np.array([[0.5, 0.25, 0.125, 0.125],[0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25]])
-pi = pd.DataFrame(pi, index= ('A', 'C', 'G', 'T'), columns= ('A', 'C', 'G', 'T'))
-
-tau = pd.DataFrame(np.array([[0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25]]), index=['A', 'C', 'G', 'T'], columns=['A', 'C', 'G', 'T'])
-gamma = np.array([0.9,0.03,0.04,0.03])
-alpha = alpha_func(eta0, eta1, pi, gamma, reads[0], qualities[0], tau, h)
-beta = e_func(eta0, eta1, pi, gamma, reads[0], qualities[0], tau, h)
+# h = 1
+# eta0 = np.zeros(40)
+# eta0[36:40] = [0.1, 0.1, 0.3, 0.4]
+#
+# eta1 = eta0 #np.random.dirichlet(np.ones(40))
+# pi = np.array([[0.5, 0.25, 0.125, 0.125],[0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25]])
+# pi = pd.DataFrame(pi, index= ('A', 'C', 'G', 'T'), columns= ('A', 'C', 'G', 'T'))
+#
+# tau = pd.DataFrame(np.array([[0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25], [0.25, 0.25, 0.25, 0.25]]), index=['A', 'C', 'G', 'T'], columns=['A', 'C', 'G', 'T'])
+# gamma = np.array([0.9,0.03,0.04,0.03])
+# alpha = alpha_func(eta0, eta1, pi, gamma, reads[0], qualities[0], tau, h)
+# # print(alpha)
+e_func(eta0, eta1, pi, gamma, reads[0], qualities[0], tau, h)
 # print(alpha)
 
 
