@@ -75,6 +75,34 @@ def alpha_func(eta0, eta1, pi, gamma, read, quality, tau, h):
     return alpha_vec
 
 
+def eijzw_num(alpha, beta, pi, eta0, eta1, tau, r, q, sample_space):
+
+
+    # alpha is the j-1 row of the alpha matrix for 1 read
+    # beta is the jth(last row = beta[1]) row of the beta matrix
+    nucs = ['A','C','G','T']
+
+    e_num = np.zeros((pow(4,h),4))
+    # zloop
+    for z in sample_space:
+        # wloop
+        temp_e = np.ones(4)
+        for w in nucs:
+            # Equation to calculate num of eijzw: alpha(z) * beta(w) * eta0(r=w) or eta1(r != w) * tau zw * pi(r,w)
+            if r == w:
+                temp_e[nucs.index(w)] = alpha[sample_space.index(z)] * beta[nucs.index(w)] * eta0[q-1] * tau[w][z] * pi[w][r]
+            else:
+                temp_e[nucs.index(w)] = alpha[sample_space.index(z)] * beta[nucs.index(w)] * eta1[q- 1] * tau[w][z] * pi[w][r]
+
+        e_num[sample_space.index(z)] = temp_e
+
+    sum_eijzw = np.sum(e_num)
+    e = e_num/sum_eijzw
+    return e
+
+
+
+
 def e_func(eta0, eta1, pi, gamma, read, quality, tau, h):
 
     beta_out = np.ones((2, pow(4, h)))
@@ -89,11 +117,7 @@ def e_func(eta0, eta1, pi, gamma, read, quality, tau, h):
     E_ijn['G']= []
     E_ijn['T'] =[]
 
-    E_ijzw = dict.fromkeys(['A', 'C', 'G', 'T'])
-    E_ijn['A'] = []
-    E_ijn['C'] = []
-    E_ijn['G'] = []
-    E_ijn['T'] = []
+    E_ijzw = np.zeros((pow(4, h), 4))
 
     for j in range(len(read) - 1, -1, -1):
         # Calculate beta
@@ -114,15 +138,15 @@ def e_func(eta0, eta1, pi, gamma, read, quality, tau, h):
 
         # Calculate the numerator of E_ijn for 1 read
         e = np.multiply(alpha[j], beta_out[1])
-        E_ijn['A'].insert(0,e[0])
-        E_ijn['C'].insert(0,e[1])
-        E_ijn['G'].insert(0,e[2])
-        E_ijn['T'].insert(0,e[3])
+        E_ijn['A'].insert(0, e[0])
+        E_ijn['C'].insert(0, e[1])
+        E_ijn['G'].insert(0, e[2])
+        E_ijn['T'].insert(0, e[3])
 
         # Calculate the numerator of E_ijzw for 1 read
-
-        e_zw = np.multiply(alpha[j-1], beta_out[1])
-
+        a = alpha[j-1]
+        b = beta_out[1]
+        E_ijzw += eijzw_num(a, b, pi, eta0, eta1, tau, read[j], quality[j], sample_space)
         beta_out[1] = beta_out[0]
 
     eijn_sums = []
@@ -140,29 +164,12 @@ def e_func(eta0, eta1, pi, gamma, read, quality, tau, h):
     E_ijn['T'] = [b / m for b, m in zip(E_ijn['T'], eijn_sums)]
 
 
-
-    print(E_ijn)
-
-
-    return E_ijn
-
-
-
-    # Return:
-    # ei1n,
-    # sum over all j of eijn,
-    # sum over all j and all nucs of eijk,
-    # sum over all j
-
-
+    return E_ijn, E_ijzw
 
 
 
 
 ##### To Do: #####
-# Estep:
-    # eij:
-    # eijz:
 # Mstep:
     # Update Eta:
     # Update Pi:
