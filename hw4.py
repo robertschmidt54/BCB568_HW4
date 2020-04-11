@@ -277,7 +277,44 @@ def Update_Tau(eijzw):
 
     return eijzw/eijzw_sums
 
+def Convergence(new_gamma, old_gamma,new_pie, old_pie, new_eta0,old_eta0, new_eta1, old_eta1, new_tau, old_tau):
 
+    global pie_is_con
+    global eta0_is_con
+    global eta1_is_con
+    global tau_is_con
+    global gamma_is_con
+
+    if max(new_gamma - old_gamma) < 10**(-6):
+        print("")
+        print("Max Pie Difference", np.max(new_gamma - old_gamma))
+        print("")
+        gamma_is_con = True
+    if max(new_pie - old_pie) < 10**(-6):
+        print("")
+        print("Max Pie Difference", np.max(new_pie - old_pie))
+        print("")
+        pie_is_con = True
+
+    if np.max(new_eta0 - old_eta0) < 10**(-6):
+        print("")
+        print("Eta Difference", max(new_eta0 - old_eta0))
+        print("")
+        eta0_is_con = True
+    if np.max(new_eta1 - old_eta1) < 10**(-6):
+        print("")
+        print("Eta Difference", max(new_eta1 - old_eta1))
+        print("")
+        eta1_is_con = True
+    if np.max(new_tau - old_tau) < 10**(-6):
+        print("")
+        print("Eta Difference", max(new_tau - old_tau))
+        print("")
+        tau_is_con = True
+
+
+
+    return gamma_is_con, pie_is_con, eta0_is_con, eta1_is_con, tau_is_con
 
 
 ##### To Do: #####
@@ -321,7 +358,12 @@ qualities = np.asarray(qualities)
 # Da Real stuff
 # Order of markov chain
 h = 1
-
+# Run EM algorithm
+pie_is_con = False
+eta0_is_con = False
+eta1_is_con = False
+tau_is_con = False
+gamma_is_con = False
 # Initial state matrix
 tau = intialize_Tau(nucs, h)
 gamma = np.random.dirichlet(np.ones(pow(4,h)))
