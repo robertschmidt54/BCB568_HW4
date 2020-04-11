@@ -93,11 +93,18 @@ def eijzw_num(alpha, beta, pi, eta0, eta1, tau, r, q, sample_space):
                 temp_e[nucs.index(w)] = alpha[sample_space.index(z)] * beta[nucs.index(w)] * eta0[q-1] * tau[w][z] * pi[w][r]
             else:
                 temp_e[nucs.index(w)] = alpha[sample_space.index(z)] * beta[nucs.index(w)] * eta1[q- 1] * tau[w][z] * pi[w][r]
+        # print("z", z)
+        # print("Temp_e", temp_e)
 
         e_num[sample_space.index(z)] = temp_e
 
     sum_eijzw = np.sum(e_num)
-    e = e_num/sum_eijzw
+    # print("E_num", e_num)
+    if sum_eijzw != 0:
+        e = e_num/sum_eijzw
+    else:
+        e = e_num
+    # print("After Division:", e)
     return e
 
 
@@ -262,8 +269,13 @@ def Update_Eta(reads, qualities, E_ijn, sample_space):
 
 
 
-def Update_Tau():
-    pass
+def Update_Tau(eijzw):
+
+    # Basically take each row of the eijzw matrix and divide by the sum of the row
+    #
+    eijzw_sums = eijzw.sum(axis= 1, keepdims=True)
+
+    return eijzw/eijzw_sums
 
 
 
@@ -296,7 +308,7 @@ nucs = ['A', 'C', 'G', 'T']
 reads = []
 qualities = []
 print("Reading in Data.")
-for record in SeqIO.parse("errored_reads.fastq", "fastq"):
+for record in SeqIO.parse("test.fastq", "fastq"):
 
     reads.append(str(record.seq))
     qualities.append(record.letter_annotations["phred_quality"])
@@ -347,18 +359,22 @@ for i in range(0,len(reads)):
     # print(E_ijn)
     for z in sample_space:
         E_ijn[sample_space.index(z)][i] = temp_eijn[z]
-print("E's calculated.")
-print("Updating parameters.")
-gamma_new = Update_Gamma(E_ijn[:,:,0], len(reads), h)
-print("Gamma updated.")
-pi_new = Update_Pi(E_ijn, sample_space, reads, h)
-print("Pi updated.")
-eta0_new, eta1_new = Update_Eta(reads, qualities, E_ijn, sample_space)
-print("Etas updated.")
 
-print("Done.")
 # print(E_ijzw)
+# print("E's calculated.")
+# print("Updating parameters.")
+# gamma_new = Update_Gamma(E_ijn[:,:,0], len(reads), h)
+# print("Gamma updated.")
+# pi_new = Update_Pi(E_ijn, sample_space, reads, h)
+# print("Pi updated.")
+# eta0_new, eta1_new = Update_Eta(reads, qualities, E_ijn, sample_space)
+# print("Etas updated.")
 
+tau_new = Update_Tau(E_ijzw)
+#print("Tau updated.")
+# print("Done.")
+
+tau_new = Update_Tau(E_ijzw)
 
 
 #Convergence function:
