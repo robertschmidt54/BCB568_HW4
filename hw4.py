@@ -160,18 +160,107 @@ def e_func(eta0, eta1, pi, gamma, read, quality, tau, h):
 
     return E_ijn, E_ijzw
 
+def simplifyE(E_ijn, samplespace):
+    simple_E = np.zeros((4, len(reads), len(reads[0])))
+    for s in samplespace:
+        if s.endswith('A'):
+            simple_E[0] += E_ijn[sample_space.index(s)]
+        elif s.endswith('C'):
+            simple_E[1] += E_ijn[sample_space.index(s)]
+        elif s.endswith('G'):
+            simple_E[2] += E_ijn[sample_space.index(s)]
+        else:
+            simple_E[3] += E_ijn[sample_space.index(s)]
 
+    return simple_E
 def Update_Gamma(ei1n, y, h):
 
     return np.sum(ei1n, axis=1)/y
 
 
 
-def Update_Pi():
-    pass
+def Update_Pi(E_ijn, sample_space, reads, h):
+    if h > 1:
+        E_ijn = simplifyE(E_ijn, sample_space)
 
-def Update_Eta():
-    pass
+    print("E_ijn", E_ijn)
+    piAn = np.zeros(4)
+    piCn = np.zeros(4)
+    piGn = np.zeros(4)
+    piTn = np.zeros(4)
+    y = 0 #Counter for reads because numpy doesn't have a good index function.
+
+    for read in reads:
+        k = 0  # Counter for position in read because reasons.
+        for j in read:
+            if j == 'A':
+                piAn += E_ijn[:,y,k] #[E_ijn[0, y, k], E_ijn[1, y, k], E_ijn[2,y,k], E_ijn[3,y,k]]
+            elif j == 'C':
+                piCn += E_ijn[:,y,k] #[E_ijn[0, y, k], E_ijn[1, y, k], E_ijn[2,y,k], E_ijn[3,y,k]]
+            elif j == 'G':
+                piGn += E_ijn[:,y,k] #[E_ijn[0, y, k], E_ijn[1, y, k], E_ijn[2,y,k], E_ijn[3,y,k]]
+            else:
+                piTn += E_ijn[:,y,k] #[E_ijn[0, y, k], E_ijn[1, y, k], E_ijn[2, y, k], E_ijn[3, y, k]]
+            k += 1
+        y += 1
+
+
+    e_sums = np.sum(E_ijn, axis=(1,2))
+    print("E_sums: ", e_sums)
+    print("E_ijT: ", E_ijn[3,:,:])
+    print("E_sum of T: ", np.sum(E_ijn[3,:,:]))
+    pi_temp = np.stack((piAn, piCn, piGn, piTn),axis=0)
+    pi_temp /= e_sums
+
+    pi_out = pd.DataFrame(pi_temp , index=['A', 'C', 'G', 'T'], columns = ['A', 'C', 'G', 'T'])
+    return pi_out
+
+
+
+
+
+
+
+
+
+def Update_Eta(reads, qualities, E_ijn, sample_space):
+    '''
+        loop through reads and posistions:
+            if r == 'A':
+                eta0_temp[quality -1] += E_ijn[A, read number, posistion number]
+                eta1_temp[quality -1] += E_ijn[C, T, and G, read number, posistion number]
+            Similar if statements for C, G, T.
+
+        eta0_temp/sum(eta0_temp)
+        eta1_temp/sum(eta1_temp)
+        '''
+    if h > 1:
+        E_ijn =simplifyE(E_ijn, sample_space)
+    eta0_temp = np.zeros(40)
+    eta1_temp = np.zeros(40)
+    for i in range(len(reads)):
+        quality = qualities[i]
+        read = reads[i]
+        for j in range(len(read)):
+            q = quality[j]
+            r = read[j]
+
+            if r == 'A':
+                eta0_temp[q-1] += E_ijn[0, i, j]
+                eta1_temp[q-1] += E_ijn[1, i, j] + E_ijn[2, i, j] + E_ijn[3, i, j]
+            elif r == 'C':
+                eta0_temp[q-1] += E_ijn[1, i, j]
+                eta1_temp[q-1] += E_ijn[0, i, j] + E_ijn[2, i, j] + E_ijn[3, i, j]
+            elif r == 'G':
+                eta0_temp[q-1] += E_ijn[2, i, j]
+                eta1_temp[q-1] += E_ijn[1, i, j] + E_ijn[0, i, j] + E_ijn[3, i, j]
+            else:
+                eta0_temp[q-1] += E_ijn[3, i, j]
+                eta1_temp[q-1] += E_ijn[1, i, j] + E_ijn[2, i, j] + E_ijn[0, i, j]
+
+    return eta0_temp/sum(eta0_temp), eta1_temp/sum(eta1_temp)
+
+
 
 def Update_Tau():
     pass
@@ -206,12 +295,12 @@ nucs = ['A', 'C', 'G', 'T']
 # Import Fastq
 reads = []
 qualities = []
-
-for record in SeqIO.parse("test.fastq", "fastq"):
+print("Reading in Data.")
+for record in SeqIO.parse("errored_reads.fastq", "fastq"):
 
     reads.append(str(record.seq))
     qualities.append(record.letter_annotations["phred_quality"])
-
+print("Data read in.")
 # Convert to Numpy Arrays
 reads = np.asarray(reads)
 qualities = np.asarray(qualities)
@@ -226,12 +315,12 @@ tau = intialize_Tau(nucs, h)
 gamma = np.random.dirichlet(np.ones(pow(4,h)))
 eta0 = np.random.dirichlet(np.ones(40))
 eta1 = np.random.dirichlet(np.ones(40))
-pi = np.zeros((4,4))
+pi = np.random.rand(4,4)
+pi /=np.sum(pi, axis=0)
+pi = pd.DataFrame(pi, index = ['A', 'C', 'G', 'T'], columns = ['A', 'C', 'G', 'T'])
 list_of_hstrings = []
 sample_space = generate_hstring(list_of_hstrings, nucs, "", len(nucs), h)
-for i in range(0,4):
-    pi[i] = np.random.dirichlet(np.ones(4))
-pi = pd.DataFrame(pi, index = ['A', 'C', 'G', 'T'], columns = ['A', 'C', 'G', 'T'])
+
 
 # # Test Crap
 # eta0 = np.zeros(40)
@@ -245,25 +334,35 @@ pi = pd.DataFrame(pi, index = ['A', 'C', 'G', 'T'], columns = ['A', 'C', 'G', 'T
 # gamma = np.array([0.9,0.03,0.04,0.03])
 #
 #
+print("Begin calculating E's.")
 E_ijzw = np.zeros((pow(4, h),4))
 E_ijn = np.ones((pow(4,h), len(reads),len(reads[0])))
 
 for i in range(0,len(reads)):
+    if i%100 == 0:
+        print(str(i) + " Reads processed.")
     temp_eijn = e_func(eta0, eta1, pi, gamma, reads[i], qualities[i], tau, h)[0]
 
     E_ijzw += e_func(eta0, eta1, pi, gamma, reads[i], qualities[i], tau, h)[1]
     # print(E_ijn)
     for z in sample_space:
         E_ijn[sample_space.index(z)][i] = temp_eijn[z]
-
-print("Eijn", E_ijn)
-print(E_ijn[:,:,0])
+print("E's calculated.")
+print("Updating parameters.")
 gamma_new = Update_Gamma(E_ijn[:,:,0], len(reads), h)
+print("Gamma updated.")
+pi_new = Update_Pi(E_ijn, sample_space, reads, h)
+print("Pi updated.")
+eta0_new, eta1_new = Update_Eta(reads, qualities, E_ijn, sample_space)
+print("Etas updated.")
+
+print("Done.")
 # print(E_ijzw)
 
 
 
-
+#Convergence function:
+ # return eta0_new - eta0_old < 10^-6 and eta1_new - eta1_old < 10^6 etc...
 
 
 
