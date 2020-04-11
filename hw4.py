@@ -161,15 +161,20 @@ def e_func(eta0, eta1, pi, gamma, read, quality, tau, h):
     return E_ijn, E_ijzw
 
 
-def Update_Gamma(ei1n, n, h):
+def Update_Gamma(ei1n, y, h):
 
-    gamma_update = np.zeros(pow(4,h))
-
-    print(np.sum(ei1n)/n)
+    return np.sum(ei1n, axis=1)/y
 
 
-    return gamma_update
 
+def Update_Pi():
+    pass
+
+def Update_Eta():
+    pass
+
+def Update_Tau():
+    pass
 
 
 
@@ -251,8 +256,9 @@ for i in range(0,len(reads)):
     for z in sample_space:
         E_ijn[sample_space.index(z)][i] = temp_eijn[z]
 
-print(E_ijn)
-Update_Gamma(E_ijn[:,:,0], len(reads), h)
+print("Eijn", E_ijn)
+print(E_ijn[:,:,0])
+gamma_new = Update_Gamma(E_ijn[:,:,0], len(reads), h)
 # print(E_ijzw)
 
 
