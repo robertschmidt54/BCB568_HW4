@@ -364,18 +364,20 @@ old_pi = pd.DataFrame(old_pi,  index = ['A', 'C', 'G', 'T'], columns = ['A', 'C'
 
 
 # Main Function
-count = 0
+iteration = 0
 while not Convergence(new_gamma, old_gamma, new_pi, old_pi, new_eta0, old_eta0, new_eta1, old_eta1, new_tau, old_tau):
     E_ijzw = np.zeros((pow(4, h), 4))
     E_ijn = np.ones((pow(4, h), len(reads), len(reads[0])))
-    print("Test COnvergence")
-    print("New_gamma:", max(new_gamma - old_gamma))
-    print("New_Pi", (new_pi - old_pi).values.max())
-    print("New_Tau", (new_tau - old_tau).values.max())
-    print("New_Eta0", max(new_eta0 - old_eta0))
-    print("New_Eta1", max(new_eta1 - old_eta1))
-    print(count)
+    # print("Test COnvergence")
+    # print("New_gamma:", max(new_gamma - old_gamma))
+    # print("New_Pi", (new_pi - old_pi).values.max())
+    # print("New_Tau", (new_tau - old_tau).values.max())
+    # print("New_Eta0", max(new_eta0 - old_eta0))
+    # print("New_Eta1", max(new_eta1 - old_eta1))
+    print(iteration)
 
+    if iteration > 10:
+        break
     for i in range(0, len(reads)):
         # Calculate E Function
         if i % 100 == 0:
@@ -405,7 +407,7 @@ while not Convergence(new_gamma, old_gamma, new_pi, old_pi, new_eta0, old_eta0, 
         old_eta1 = new_eta1
         old_eta0 = new_eta0
         new_eta0, new_eta1 = Update_Eta(reads, qualities, E_ijn, sample_space)
-    count += 1
+    iteration += 1
 
 
 print("Final Gamma Estimate:\n", new_gamma)
@@ -413,7 +415,7 @@ print("Final Pi Estimate\n", new_pi)
 print("Final Tau Estimate\n", new_tau)
 print("Final Eta0 Estimate\n", new_eta0)
 print("Final Eta1 Estimate\n", new_eta1)
-print(count)
+print(iteration)
 # # Test Crap
 # eta0 = np.zeros(40)
 # eta0[36:40] = [0.1, 0.1, 0.3, 0.4]
