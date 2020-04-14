@@ -65,11 +65,12 @@ def alpha_func(eta0, eta1, pi, gamma, read, quality, tau, h):
             alpha_vec[j-h][sample_space.index(s)] = 0
 
             for t in sample_space:
-                print(sample_space.index(t))
+                # print(tau[s[h-1]][t])
+
                 alpha_vec[j-h][sample_space.index(s)] += alpha_vec[j-h-1][sample_space.index(t)]*tau[s[h-1]][t]
 
             if read[j-h] == s[h-1]:
-                alpha_vec[j-h][sample_space.index(s)] *= eta0[quality[j-h]-1]*pi[s[h-1]][read[j-h]]
+                alpha_vec[j-h][sample_space.index(s)] *= eta0[quality[j-h]-1]* pi[s[h-1]][read[j-h]]
             else:
                 alpha_vec[j-h][sample_space.index(s)] *= eta1[quality[j-h]-1] * pi[s[h-1]][read[j-h]]
 
@@ -181,8 +182,11 @@ def simplifyE(E_ijn, samplespace):
             simple_E[3] += E_ijn[sample_space.index(s)]
 
     return simple_E
+
 def Update_Gamma(ei1n, y, h):
 
+    # temp_gamma = np.zeros(pow(4,h))
+    # temp_gamma += ei1n
     return np.sum(ei1n, axis=1)/y
 
 
@@ -228,9 +232,6 @@ def Update_Pi(E_ijn, sample_space, reads, h):
 
 
 
-
-
-
 def Update_Eta(reads, qualities, E_ijn, sample_space):
     '''
         loop through reads and posistions:
@@ -269,53 +270,50 @@ def Update_Eta(reads, qualities, E_ijn, sample_space):
     return eta0_temp/sum(eta0_temp), eta1_temp/sum(eta1_temp)
 
 
+def Update_Tau(eijzw, sample_space):
 
-def Update_Tau(eijzw):
-
-    # Basically take each row of the eijzw matrix and divide by the sum of the row
-    #
     eijzw_sums = eijzw.sum(axis= 1, keepdims=True)
-    # print(eijzw)
-    # print(eijzw/eijzw_sums)
+    new_tau = eijzw/eijzw_sums
 
-    return eijzw/eijzw_sums
+    return pd.DataFrame(new_tau, index= sample_space, columns= ('A', 'C', 'G', 'T'))
+
 
 def Convergence(new_gamma, old_gamma,new_pie, old_pie, new_eta0,old_eta0, new_eta1, old_eta1, new_tau, old_tau):
 
     global pie_is_con
-    global eta0_is_con
-    global eta1_is_con
+    global eta_is_con
     global tau_is_con
     global gamma_is_con
 
-    if max(new_gamma - old_gamma) < (10**(-6)):
+    if max(new_gamma - old_gamma) <= (10**(-6)):
         print("")
-        print("Max Pie Difference", np.max(new_gamma - old_gamma))
+        print("Max Gamma Difference", np.max(new_gamma - old_gamma))
         print("")
         gamma_is_con = True
-    if (new_pie - old_pie).values.max() < (10**(-6)):
+
+
+    if (new_pie - old_pie).values.max() <= (10**(-3)):
         print("")
         print("Max Pie Difference", (new_pie - old_pie).values.max())
         print("")
         pie_is_con = True
 
-    if max(new_eta0 - old_eta0) < 10**(-6):
+    if max(new_eta1 - old_eta1) <= 10**(-3) and max(new_eta0 - old_eta0) <= (10**(-3)):
         print("")
-        print("Eta Difference", max(new_eta0 - old_eta0))
+        print("Eta1 Difference", max(new_eta1 - old_eta1))
         print("")
-        eta0_is_con = True
-    if max(new_eta1 - old_eta1) < 10**(-6):
         print("")
-        print("Eta Difference", max(new_eta1 - old_eta1))
+        print("Eta0 Difference", max(new_eta0 - old_eta0))
         print("")
-        eta1_is_con = True
-    if  (new_tau - old_tau).values.max() < 10**(-6):
+        eta_is_con = True
+
+    if (new_tau - old_tau).values.max() <= 10**(-3):
         print("")
-        print("Eta Difference", (new_tau - old_tau).values.max())
+        print("Tau Difference", (new_tau - old_tau).values.max())
         print("")
         tau_is_con = True
 
-    return gamma_is_con and  pie_is_con and  eta0_is_con and eta1_is_con and  tau_is_con
+    return gamma_is_con and  pie_is_con and eta_is_con and  tau_is_con
 
 
 ##### To Do: #####
@@ -346,7 +344,7 @@ nucs = ['A', 'C', 'G', 'T']
 reads = []
 qualities = []
 print("Reading in Data.")
-for record in SeqIO.parse("test.fastq", "fastq"):
+for record in SeqIO.parse("errored_reads.fastq", "fastq"):
 
     reads.append(str(record.seq))
     qualities.append(record.letter_annotations["phred_quality"])
@@ -358,20 +356,20 @@ qualities = np.asarray(qualities)
 
 # Da Real stuff
 # Order of markov chain
-h = 2
+h = 1
 # Run EM algorithm
 pie_is_con = False
-eta0_is_con = False
-eta1_is_con = False
+eta_is_con = False
 tau_is_con = False
 gamma_is_con = False
 # Initial state matrix
 new_tau = intialize_Tau(nucs, h)
+
 new_gamma = np.random.dirichlet(np.ones(pow(4,h)))
 new_eta0 = np.random.dirichlet(np.ones(40))
 new_eta1 = np.random.dirichlet(np.ones(40))
 pi = np.random.rand(4,4)
-pi /=np.sum(pi, axis=0)
+pi /= np.sum(pi, axis=0)
 new_pi = pd.DataFrame(pi, index = ['A', 'C', 'G', 'T'], columns = ['A', 'C', 'G', 'T'])
 list_of_hstrings = []
 sample_space = generate_hstring(list_of_hstrings, nucs, "", len(nucs), h)
@@ -381,47 +379,61 @@ old_tau = pd.DataFrame(old_tau, index = sample_space, columns = ['A', 'C', 'G', 
 old_gamma = np.zeros(pow(4,h))
 old_eta0 = np.zeros(40)
 old_eta1 = np.zeros(40)
-old_pi = np.ones((4,4))
+old_pi = np.zeros((4,4))
 old_pi = pd.DataFrame(old_pi,  index = ['A', 'C', 'G', 'T'], columns = ['A', 'C', 'G', 'T'])
 
 
 # Main Function
-while not Convergence(new_gamma, old_gamma,new_pi, old_pi, new_eta0, old_eta0, new_eta1, old_eta1, new_tau, old_tau):
+count = 0
+while not Convergence(new_gamma, old_gamma, new_pi, old_pi, new_eta0, old_eta0, new_eta1, old_eta1, new_tau, old_tau):
     E_ijzw = np.zeros((pow(4, h), 4))
     E_ijn = np.ones((pow(4, h), len(reads), len(reads[0])))
-
-    print("New_gamma:", new_gamma)
-    print("New_Pi", new_pi)
-    print("New_Tau", new_tau)
-    print("New_Eta0", new_eta0)
-    print("New_Eta1", new_eta1)
+    print("Test COnvergence")
+    print("New_gamma:", max(new_gamma - old_gamma))
+    print("New_Pi", (new_pi - old_pi).values.max())
+    print("New_Tau", (new_tau - old_tau).values.max())
+    print("New_Eta0", max(new_eta0 - old_eta0))
+    print("New_Eta1", max(new_eta1 - old_eta1))
+    print(count)
 
     for i in range(0, len(reads)):
         # Calculate E Function
         if i % 100 == 0:
             print(str(i) + " Reads processed.")
-        temp_eijn = e_func(new_eta0, new_eta1, new_pi, new_gamma, reads[i], qualities[i], new_tau, h)[0]
 
+        temp_eijn = e_func(new_eta0, new_eta1, new_pi, new_gamma, reads[i], qualities[i], new_tau, h)[0]
         E_ijzw += e_func(new_eta0, new_eta1, new_pi, new_gamma, reads[i], qualities[i], new_tau, h)[1]
-        # print(E_ijn)
+
         for z in sample_space:
             E_ijn[sample_space.index(z)][i] = temp_eijn[z]
 
-    # Update Parameters
-    old_gamma = new_gamma
-    new_gamma = Update_Gamma(E_ijn[:,:,0], len(reads), h)
+        # Calculating the nums as we go
 
-    old_tau = new_tau
-    new_tau = Update_Tau(E_ijzw)
+    # # M step Updates
+    if not gamma_is_con:
+        old_gamma = new_gamma
+        new_gamma = Update_Gamma(E_ijn[:,:,0], len(reads), h)
 
-    old_pi = new_pi
-    new_pi = Update_Pi(E_ijn, sample_space, reads, h)
+    if not tau_is_con:
+        old_tau = new_tau
+        new_tau = Update_Tau(E_ijzw, sample_space)
 
-    old_eta0 = new_eta0
-    old_eta1 = new_eta1
-    eta0_new, eta1_new = Update_Eta(reads, qualities, E_ijn, sample_space)
+    if not pie_is_con:
+        old_pi = new_pi
+        new_pi = Update_Pi(E_ijn, sample_space, reads, h)
+    if not eta_is_con:
+        old_eta1 = new_eta1
+        old_eta0 = new_eta0
+        new_eta0, new_eta1 = Update_Eta(reads, qualities, E_ijn, sample_space)
+    count += 1
 
 
+print("Final Gamma Estimate:\n", new_gamma)
+print("Final Pi Estimate\n", new_pi)
+print("Final Tau Estimate\n", new_tau)
+print("Final Eta0 Estimate\n", new_eta0)
+print("Final Eta1 Estimate\n", new_eta1)
+print(count)
 # # Test Crap
 # eta0 = np.zeros(40)
 # eta0[36:40] = [0.1, 0.1, 0.3, 0.4]
@@ -434,45 +446,14 @@ while not Convergence(new_gamma, old_gamma,new_pi, old_pi, new_eta0, old_eta0, n
 # gamma = np.array([0.9,0.03,0.04,0.03])
 #
 #
-# print("Begin calculating E's.")
-# E_ijzw = np.zeros((pow(4, h),4))
-# E_ijn = np.ones((pow(4,h), len(reads),len(reads[0])))
-#
-# for i in range(0,len(reads)):
-#     if i%100 == 0:
-#         print(str(i) + " Reads processed.")
-#     temp_eijn = e_func(eta0, eta1, pi, gamma, reads[i], qualities[i], tau, h)[0]
-#
-#     E_ijzw += e_func(eta0, eta1, pi, gamma, reads[i], qualities[i], tau, h)[1]
-#     # print(E_ijn)
-#     for z in sample_space:
-#         E_ijn[sample_space.index(z)][i] = temp_eijn[z]
-
-# print(E_ijzw)
-# print("E's calculated.")
-# print("Updating parameters.")
-# gamma_new = Update_Gamma(E_ijn[:,:,0], len(reads), h)
-# print("Gamma updated.")
-# pi_new = Update_Pi(E_ijn, sample_space, reads, h)
-# print("Pi updated.")
-# eta0_new, eta1_new = Update_Eta(reads, qualities, E_ijn, sample_space)
-# print("Etas updated.")
-
-# tau_new = Update_Tau(E_ijzw)
-#print("Tau updated.")
-# print("Done.")
-
-
-#Convergence function:
- # return eta0_new - eta0_old < 10^-6 and eta1_new - eta1_old < 10^6 etc...
 
 
 
+# Verterbi algorithm
+# def Verterbi():
 
+# FOrward Part:
+# Intialize Zeta1(N) = gamma_N * eta0 or eta1 * pie
+# Calculate new Zetas = eta0 or eta1 * pie * max(Zeta1(z') * tau(z', z)
+# Calculate a B matrix: Bj(z') = argmax(zeta_j-1(z') * ta(z', z) for j > 1
 
-
-
-
-
-
-# Export Data
