@@ -313,27 +313,7 @@ def Convergence(new_gamma, old_gamma,new_pie, old_pie, new_eta0,old_eta0, new_et
         print("")
         tau_is_con = True
 
-    return gamma_is_con and  pie_is_con and eta_is_con and  tau_is_con
-
-
-##### To Do: #####
-# Mstep:
-    # Update Eta:
-    # Update Pi:
-    # Update Gamma
-    # Update Tau
-# Convergence function:
-# Main Program:
-    # Intialize Parameters
-    # Run the Estep functions
-    # Run Update functions
-
-#to correct for underflow:
-# calculate e numerators in log space
-# Take the max of that numerator
-# Convert back to normal with exp()
-# Subtract the max value
-# https://stackoverflow.com/questions/42599498/numercially-stable-softmax
+    return gamma_is_con and pie_is_con and eta_is_con and tau_is_con
 
 
 
@@ -452,8 +432,62 @@ print(count)
 # Verterbi algorithm
 # def Verterbi():
 
-# FOrward Part:
+# Forward Part:
 # Intialize Zeta1(N) = gamma_N * eta0 or eta1 * pie
 # Calculate new Zetas = eta0 or eta1 * pie * max(Zeta1(z') * tau(z', z)
-# Calculate a B matrix: Bj(z') = argmax(zeta_j-1(z') * ta(z', z) for j > 1
+# Calculate a B matrix: Bj(z') = argmax(zeta_j-1(z') * tau(z', z) for j > 1
 
+# Backward Part:
+# Z_2 = argmax( B_2(A), B_2(C), B_2(G), B_2(T))
+# Z_1 = B_2(Z_2)
+
+def Verterbi(pie, gamma, tau, eta0, eta1, reads, qualities):
+    code = {0: "A", 1: "C", 2: "G", 3: "T"}
+    # read = reads[0]
+    # quality = qualities[0]
+    nucs = ['A', 'C', 'G', 'T']
+    # Zeta = np.zeros((2, 4))
+    B = np.array(len(reads[0]))
+    for i in range(len(reads)):
+    # Forward Part:
+        read = reads[i]
+        quality = qualities[i]
+        Zeta = np.zeros((len(reads[0]), 4))
+        B = np.zeros((len(reads[0],4)))
+        true_seq = ""
+        for j in range(0, len(read)):
+            # Forward Process
+            for z in nucs:
+                if j == 0:
+                    # Intialize Zeta1(N) = gamma_N * eta0 or eta1 * pie
+                    if read[j] == z:
+                        Zeta[j][nucs.index(z)] = gamma[nucs.index(z)] * eta0[quality-1] * pie[z][read[j]]
+
+                    else:
+                        Zeta[j][nucs.index(z)] = gamma[nucs.index(z)] * eta1[quality-1] * pie[z][read[j]]
+                else:
+                    # Calculate new Zetas = eta0 or eta1 * pie * max(Zeta1(z') * tau(z', z)
+                    old_z = code[np.argmax(Zeta[j-1])]
+                    if read[j] == z:
+                        Zeta[j][nucs.index(z)] = eta0[quality - 1] * pie[z][read[j]] * np.max(Zeta[j-1] * tau[z][old_z])
+
+                    else:
+                        Zeta[j][nucs.index(z)] = eta1[quality - 1] * pie[z][read[j]] * np.max(Zeta[j-1] * tau[z][old_z])
+                    # Calculate a B matrix: Bj(z') = argmax(zeta_j-1(z') * tau(z', z) for j > 1
+                    B[j][nucs.index(z)] = np.argmax(Zeta[j-1] * tau[z][old_z])
+
+        for j in range(len(read)-1, 0, -1):
+            # Backward Process:
+            if j == len(read)-1:
+                true_seq += np.argmax(Zeta[j])
+            elif j > 1 and j < len(read)-1:
+                # Zj = Bj+1(Zj+1)
+                true_seq += B[j+1]
+    pass
+
+
+
+
+
+# Z_2 = argmax( B_2(A), B_2(C), B_2(G), B_2(T))
+# Z_1 = B_2(Z_2)
