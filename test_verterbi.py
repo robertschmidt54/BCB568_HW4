@@ -54,7 +54,7 @@ def Verterbi(pie, gamma, tau, eta0, eta1, reads, qualities, h):
 
                     # Calculate a B matrix: Bj(z') = argmax(zeta_j-1(z') * tau(z', z) for j > 1
                     # B[j][nucs.index(z)] = np.argmax(Zeta[0] * tau[z][old_z])
-                   
+
                     B[j][nucs.index(z)] = np.argmax((Zeta[0] * tau[z]).to_numpy())
 
 
@@ -78,7 +78,7 @@ def Verterbi(pie, gamma, tau, eta0, eta1, reads, qualities, h):
 
         # print("Zeta:", Zeta)
         # print("ARGmax:", np.argmax(Zeta, axis=1))
-        # print("B:", B)
+        print("B:", B)
     return
 
 
