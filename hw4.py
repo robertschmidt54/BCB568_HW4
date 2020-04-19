@@ -68,7 +68,7 @@ def alpha_func(eta0, eta1, pi, gamma, read, quality, tau, h):
                 # print(tau[s[h-1]][t])
 
                 alpha_vec[j-h][sample_space.index(s)] += alpha_vec[j-h-1][sample_space.index(t)]*tau[s[h-1]][t]
-
+            # read[j] == s[h-1]:
             if read[j-h] == s[h-1]:
                 alpha_vec[j-h][sample_space.index(s)] *= eta0[quality[j-h]-1]* pi[s[h-1]][read[j-h]]
             else:
@@ -336,7 +336,7 @@ qualities = np.asarray(qualities)
 
 # Da Real stuff
 # Order of markov chain
-h = 1
+h = 7
 # Run EM algorithm
 pie_is_con = False
 eta_is_con = False
@@ -416,6 +416,32 @@ print("Final Tau Estimate\n", new_tau)
 print("Final Eta0 Estimate\n", new_eta0)
 print("Final Eta1 Estimate\n", new_eta1)
 print(iteration)
+
+# Write to file for Verterbi
+# h = 7
+fh = open('Parameter_estimates', 'w')
+fh.write("H-order: ")
+fh.write(h)
+fh.write("\n")
+fh.write("Final Gamma Estimate:")
+fh.write(new_gamma)
+fh.write("\n")
+fh.write("Final Pi Esimate:")
+fh.write(new_pi)
+fh.write("\n")
+fh.write("Final Tau Estimate:")
+fh.write(new_tau)
+fh.write("\n")
+fh.write("Final Eta0 Estimate")
+fh.write(new_eta0)
+fh.write("\n")
+fh.write("Final Eta1 Estimate")
+fh.write(new_eta1)
+
+fh.close()
+
+
+
 # # Test Crap
 # eta0 = np.zeros(40)
 # eta0[36:40] = [0.1, 0.1, 0.3, 0.4]
