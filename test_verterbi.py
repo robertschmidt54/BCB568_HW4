@@ -29,30 +29,22 @@ def Verterbi(pie, gamma, tau, eta0, eta1, reads, qualities, h, sample_space, rea
 
 
     true_seq_vec = []
-    with open('corrected_error.csv', mode = 'w') as fh:
+    with open('corrected_error_final_data_h2.csv', mode = 'w') as fh:
         error_writer = csv.writer(fh, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         error_writer.writerow(["Name of Read", "Position of Error", "Read Base", "Quality Score of Base", "Correct Base"  ])
         for i in range(len(reads)):
-
-        # Forward Part:
+            # Forward Process:
             read = reads[i]
-            # print("Read", read)
             quality = qualities[i]
             Zeta = np.zeros((2, pow(4,h)))
-            # B = np.zeros((len(reads[0]),pow(4,h)))
             B = np.empty((len(reads[0]), pow(4, h)), dtype= object)
             true_seq = ""
-            # for j in range(0, len(read)):
-            # Forward Process
-                # if j == 0:
-            # for z in nucs:
 
             z = read[0:h]
             Zeta[0][sample_space.index(z)] = 1
             # Assume the first H-mer is error free
             for l in range(0, h):
                 # Loop through first h-mer
-
                 Zeta[0][sample_space.index(z)] *= eta0[quality[0]-1] * pie[z[l]][read[l]]
             Zeta[0][sample_space.index(z)] *= gamma[sample_space.index(z)]
 
@@ -68,61 +60,53 @@ def Verterbi(pie, gamma, tau, eta0, eta1, reads, qualities, h, sample_space, rea
                             Zeta[1][sample_space.index(z)] = eta1[quality[j] - 1] * pie[z[-1]][read[j]] * np.max((Zeta[0] * tau[z]).to_numpy())
 
                         # Calculate a B matrix: Bj(z') = argmax(zeta_j-1(z') * tau(z', z) for j > 1
-
                         B[j][sample_space.index(z)] = sample_space[np.argmax((Zeta[0] * tau[z]).to_numpy())]
 
                     Zeta[0] = Zeta[1]
 
-            # print("B:", B)
             for j in range(len(read)-1, h-2, -1):
-                # print("J", j)
-                # print(read[j])
                 # Backward Process:
-                # THis works for h=1
+
                 if j == len(read)-1:
                     # Calculate last position in true sequence. argmax(gamma_l(z))
-                    # for z in sample_space:
-                    # Z_hat = sample_space[np.argmax((Zeta[0] * tau[z[-1]]).to_numpy())]
                     Z_hat = sample_space[np.argmax(Zeta[1])]
-
-                    # rev_Zhat = Z_hat[::-1]
                     true_seq += Z_hat[-1]
 
                 elif j == h-1:
                     new_Zhat = str(B[j + 1][sample_space.index(Z_hat)])
                     rev_Zhat = new_Zhat[::-1]
                     true_seq += rev_Zhat
-                    # true_seq += new_Zhat
+
                 else:
-                    # Zj = Bj+1(Zj+1)
                     new_Zhat = str(B[j+1][sample_space.index(Z_hat)])
-                    new_nuc = new_Zhat[0]
+                    new_nuc = new_Zhat[h-1]
                     true_seq += new_nuc
                     Z_hat = new_Zhat
 
 
             # Reverse the sequence
-            # print("Read seq", read)
-            # print("True seq", true_seq[::-1])
             true_seq_vec.append(true_seq[::-1])
+
+        # Export Results
         for i in range(len(true_seq_vec)):
             for j in range(len(true_seq_vec[0])):
 
                 if reads[i][j] == true_seq_vec[i][j]:
                     pass
                 else:
-                    error_writer.writerow([f'{read_names[i]}', f'{j+1}', f'{reads[i][j]}', f'{qualities[i][j]}',f'{true_seq_vec[i][j]}' ])
+                    error_writer.writerow([f'{read_names[i]}', f'{j}', f'{reads[i][j]}', f'{qualities[i][j]}',f'{true_seq_vec[i][j]}' ])
 
     fh.close()
 
     return
 
+
 nucs = ['A','C','G','T']
-h = 1
+h = 2
 reads = []
 qualities = []
 read_names = []
-for record in SeqIO.parse("test.fastq", "fastq"):
+for record in SeqIO.parse("errored_reads.fastq", "fastq"):
     reads.append(str(record.seq))
     read_names.append(str(record.id))
     qualities.append(record.letter_annotations["phred_quality"])
@@ -133,7 +117,7 @@ qualities = np.asarray(qualities)
 list_of_hstrings = []
 sample_space = generate_hstring(list_of_hstrings, nucs, "", len(nucs), h)
 
-
+# When H=2
 eta0 = np.array([0.00000000e+00, 7.48732417e-02, 0.00000000e+00, 7.24526631e-05,
                  2.94768134e-04, 3.87465277e-04, 4.96076520e-04, 4.62494727e-04,
                  7.74696116e-04, 6.94777618e-04, 4.61513277e-04, 5.59140658e-04,
@@ -155,16 +139,12 @@ eta1 = np.array([0.00000000e+00, 7.40514592e-02, 0.00000000e+00, 7.17765823e-05,
                  1.25241939e-01, 5.38312387e-01, 5.94788673e-02, 0.00000000e+00,
                  0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00])
 
-pi = np.random.rand(4,4)
-pi /= np.sum(pi, axis=0)
-pi = pd.DataFrame(pi, index = ['A', 'C', 'G', 'T'], columns = ['A', 'C', 'G', 'T'])
+pi = np.array([[0.307758,  0.307826,  0.307808,  0.307868],
+               [0.181251,  0.181192,  0.181232,  0.181218],
+               [0.172631,  0.172585,  0.172591,  0.172574],
+               [0.338360,  0.338397,  0.338369,  0.338339]])
 
-# pi = np.array([[0.307758,  0.307826,  0.307808,  0.307868],
-#                [0.181251,  0.181192,  0.181232,  0.181218],
-#                [0.172631,  0.172585,  0.172591,  0.172574],
-#                [0.338360,  0.338397,  0.338369,  0.338339]])
-#
-# pi = pd.DataFrame(pi, index = ['A', 'C', 'G', 'T'], columns = ['A', 'C', 'G', 'T'])
+pi = pd.DataFrame(pi, index = ['A', 'C', 'G', 'T'], columns = ['A', 'C', 'G', 'T'])
 
 tau = np.array([[0.303195,  0.214504,  0.365723,  0.116578],
                 [0.355689,  0.111196,  0.283540,  0.249574],
@@ -210,77 +190,75 @@ gamma = np.array([0.06192457, 0.06927721, 0.06327057, 0.05552765, 0.06192457, 0.
 
 
 Verterbi(pi, gamma, tau, eta0, eta1, reads, qualities, h, sample_space, read_names)
-# # print("Tau", tau)
-# print("Tau[z']", tau['A'])
 
 
-# WHEN H= 1
-# eta0 = np.array([0.00000000e+00, 7.20113984e-02, 0.00000000e+00, 7.55090035e-05,
-#                  2.75119175e-04, 3.79419307e-04, 4.74624299e-04, 4.68815024e-04,
-#                  7.44726913e-04, 6.95694663e-04, 4.81980457e-04, 5.74447950e-04,
-#                  7.49614830e-04, 2.05038360e-03, 2.39501788e-03, 1.38230375e-03,
-#                  1.31819380e-03, 1.74439781e-03, 1.91047621e-03, 2.33490108e-03,
-#                  3.32658090e-03, 2.85067216e-03, 4.43019548e-03, 4.36144234e-03,
-#                  6.18840510e-03, 6.21866901e-03, 8.33570387e-03, 1.12429593e-02,
-#                  2.01422706e-02, 2.15923900e-02, 4.10163976e-02, 5.36052677e-02,
-#                  1.27243980e-01, 5.38495418e-01, 6.08826244e-02, 0.00000000e+00,
+
+# # # WHEN H= 1
+# eta0 = np.array([0.00000000e+00, 7.23827059e-02, 0.00000000e+00, 8.82718212e-05,
+#                  3.09424990e-04, 4.21264276e-04, 5.04430509e-04, 4.65567974e-04,
+#                  8.20572503e-04, 7.08005357e-04, 4.75448005e-04, 5.92311432e-04,
+#                  7.68808474e-04, 2.07435052e-03, 2.46725869e-03, 1.44957936e-03,
+#                  1.38155080e-03, 1.78990541e-03, 2.06269220e-03, 2.49898916e-03,
+#                  3.47934889e-03, 3.08440625e-03, 4.57182739e-03, 4.59554365e-03,
+#                  6.65917250e-03, 6.63957179e-03, 8.67933832e-03, 1.21120492e-02,
+#                  2.13252629e-02, 2.21963374e-02, 4.21350498e-02, 5.51852124e-02,
+#                  1.24508871e-01, 5.35307012e-01, 5.82598595e-02, 0.00000000e+00,
 #                  0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00])
-# eta1 = np.array([0.00000000e+00, 7.50862492e-02, 0.00000000e+00, 7.06168323e-05,
-#                  2.98276566e-04, 3.87216443e-04, 4.96951248e-04, 4.58476698e-04,
-#                  7.73873087e-04, 6.93415407e-04, 4.59388205e-04, 5.52726023e-04,
-#                  7.43032256e-04, 2.04744842e-03, 2.44178890e-03, 1.41342701e-03,
-#                  1.29793965e-03, 1.73162023e-03, 1.93691410e-03, 2.34223184e-03,
-#                  3.33197319e-03, 2.96320536e-03, 4.48327944e-03, 4.40434677e-03,
-#                  6.37230105e-03, 6.36685741e-03, 8.37792334e-03, 1.15871196e-02,
-#                  2.03070198e-02, 2.20551400e-02, 4.11082603e-02, 5.38727261e-02,
-#                  1.24279154e-01, 5.38382414e-01, 5.88766870e-02, 0.00000000e+00,
+# eta1 = np.array([0.00000000e+00, 7.48946385e-02, 0.00000000e+00, 6.63411547e-05,
+#                  2.86025165e-04, 3.72699899e-04, 4.86260649e-04, 4.59806505e-04,
+#                  7.47247612e-04, 6.89240223e-04, 4.62100998e-04, 5.47052355e-04,
+#                  7.36585999e-04, 2.03928863e-03, 2.41603169e-03, 1.38969989e-03,
+#                  1.27663016e-03, 1.71627721e-03, 1.88414868e-03, 2.28579329e-03,
+#                  3.27945815e-03, 2.88067882e-03, 4.43358783e-03, 4.32314907e-03,
+#                  6.20697646e-03, 6.21938342e-03, 8.25916796e-03, 1.12818142e-02,
+#                  1.98977884e-02, 2.18383058e-02, 4.07226216e-02, 5.33251864e-02,
+#                  1.25279296e-01, 5.39478460e-01, 5.98182575e-02, 0.00000000e+00,
 #                  0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00])
-
-# pi = np.array([[0.307758,  0.307826,  0.307808,  0.307868],
-#                [0.181251, 0.181192 , 0.181232,  0.181218],
-#                [0.172631,  0.172585,  0.172591,  0.172574],
-#                [0.338360,  0.338397,  0.338369,  0.338339]])
-
 #
-# pi = np.random.rand(4,4)
-# pi /= np.sum(pi, axis=0)
+# pi = np.array([[0.307859,  0.307779,  0.307758,  0.307869],
+#                [0.181122,  0.181255,  0.181361,  0.181236],
+#                [0.172568,  0.172630,  0.172612,  0.172591],
+#                [0.338451,  0.338336,  0.338269,  0.338304]])
+#
+#
+# # pi = np.random.rand(4,4)
+# # pi /= np.sum(pi, axis=0)
 # pi = pd.DataFrame(pi, index = ['A', 'C', 'G', 'T'], columns = ['A', 'C', 'G', 'T'])
 #
 # #
-# tau = np.array([[0.350608,  0.377825,  0.046233,  0.225334],
-#                 [0.248384,  0.033259,  0.220741,  0.497616],
-#                 [0.212377,  0.166600,  0.257812,  0.363211],
-#                 [0.245338,  0.280341,  0.099946,  0.374374]])
-# tau = pd.DataFrame(tau, index = sample_space, columns = ['A', 'C', 'G', 'T'])
-# gamma = np.array([0.26988402, 0.23379493, 0.13503349, 0.36128755])
-
-
+# tau = np.array([[0.704595,  0.159773,  0.105305,  0.030328],
+#                 [0.216565,  0.235261,  0.166677,  0.381497],
+#                 [0.216266,  0.228128,  0.348351,  0.207254],
+#                 [0.171331,  0.174885,  0.533431,  0.120352]])
+#
+# new_tau = np.zeros((pow(4,h), pow(4,h)))
+# for i in sample_space:
+#     # Append A value
+#     next_state_A = i[1:h] + 'A'
+#     new_tau[sample_space.index(i)][sample_space.index(next_state_A)] = tau[sample_space.index(i)][0]
+#
+#     next_state_C = i[1:h] + 'C'
+#     new_tau[sample_space.index(i)][sample_space.index(next_state_C)] = tau[sample_space.index(i)][1]
+#
+#     next_state_G = i[1:h] + 'G'
+#     new_tau[sample_space.index(i)][sample_space.index(next_state_G)] = tau[sample_space.index(i)][2]
+#
+#     next_state_T = i[1:h] + 'T'
+#     new_tau[sample_space.index(i)][sample_space.index(next_state_T)] = tau[sample_space.index(i)][3]
+# #
+#
+#
+#
+#
+# tau = pd.DataFrame(new_tau, index = sample_space, columns = sample_space)
+# gamma = np.array([0.41013573, 0.19297337, 0.24200037, 0.15489052])
+#
+#
 # Verterbi(pi, gamma, tau, eta0, eta1, reads, qualities, h, sample_space, read_names)
-# print("Tau", tau)
-
-
-# for i in range(len(reads)):
-#     for j in range(len(reads[0])):
-#         output_string = ''
-#         if reads[i][j] == true_seq[j]:
-#             print("There are no errors")
-#         else:
-#             # print("Name of Read", i)
-#             # print("Position of Error", j)
-#             # print("Read base", reads[i][j])
-#             # print("Quality Score of Base", qualities[i][j])
-#             # print("Correct Base", true_seq[j])
 #
-#             output_string = "Name of Read: " + str(i) + " Position of Error: " + str(j) + " Read Base: " + reads[i][j] +
-#             " Quality Score of Base: "+ str(qualities[i][j]) + " Correct Base: ", true_seq[j]
 #
-
-
-
-
-
-
-
-
-
-
+#
+#
+#
+#
+#
